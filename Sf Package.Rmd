@@ -1,0 +1,374 @@
+---
+title: "Sf Package"
+author: "Anthony Palma, Ethan Deutsch, Kate Seeger"
+date: "10/11/2021"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+    code_download: true
+---
+
+# Introduction to Sf
+
+The sf plots or simple functions plots are one of many ways to show maps that can be used in conjunction with ggplot and other plotting packages. So what makes geom_sf special and why use it over other objects? 
+
+**A typical problem that can occur when trying to plot geospatial visualizations or maps with data is that you need a data source to be able to draw the intended map and another source for the information on the map that you want to display. That is where the sf_plot comes in.** 
+
+Geom_sf and simple feature plots in general are useful because it is able to work with so many different types of maps. 
+They can be manipulated in many different ways using a variety of commands or actions within the simple features program such as coord_sf or geom_sf.
+
+Some of the important arguments used in the simple features packages are the following:
+
+- `xlim` and `ylim` functions are primarily used if you want to specify with latitudinal and longitudinal limits to how much or how little of a given map you would want to show. 
+
+- `crs` is the coordinate reference system that is used primarily in coord_sf but is important in defining what portion of the map is being shown. 
+
+- `Datum` is also an important argument that works in conjunction with the crs to provide the data that is shown on the map that is being projected.
+
+- `Mapping` is another important argument as you can use aesthetics to choose how you want to display your information on the map you have chosen. 
+
+- Most other arguments being used by this function are fairly easy to understand as most of them are used in basic ggplot functions such as `position =`, different label arguments, `show.legend`, etc. 
+
+Once you get the hang of the basic structure of using geom_sf with ggplot, it can be a lot of fun to explore the many different ways that you can visualize your map and your data. 
+
+# Example 1: NC Map
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+
+```{r, eval=TRUE, results='hide'}
+library(ggplot2)
+library(sf)         
+library(rgdal)       
+library(ggplot2)      
+library(dplyr)     
+library(tidyr)        
+library(scales)       
+library(RColorBrewer)
+library(gridExtra)    
+library(readr)  
+library(ncdf4) 
+library(raster) 
+```
+
+
+This data set is from my home state of NC looking at birth rates by county in 1974 and 1979 along with sudden infant death syndrome for those same years.  SID syndrome was a big problem in the 1970s and 80s which is why this data set was created. Geographic visualizations are very easy to create when data is primed with geographic pointer variables like this set.  When primed like this, the data set is great to use with sf plot in ggplot by simply using functions primarily like geom_sf.  
+
+
+Important Variables: 
+
+**Name**: county name
+
+**FIPS/FIPSNO**: Federal Information Processing Standards code that uniquely identifies each county
+
+**BIR74**: number of births in 1974 for that county
+
+**SID74**: number of SIDS cases in 1974 for that county
+
+**NWBIR74**: number of non-white births in 1974 for that county
+
+**BIR79, SID79, NWBIR79**: same metrics at county level but for 1979
+
+
+
+First, we import the data.  Notice how it uses st_read and package = "sf" as it is especially primed for sf work.  
+
+```{r}
+nc = st_read(system.file("gpkg/nc.gpkg", package="sf"), quiet = TRUE)
+```
+
+```{r}
+nc
+```
+
+
+```{r}
+nc$geom
+```
+
+This first visualization has very simple code but can create a very complex visualization with longitude and latitude.  The data being primed with the use of the geom_sf function allows for this.     
+
+
+```{r}
+ggplot(data = nc) +
+  geom_sf(color = "orange", fill = "navy") +
+  theme_bw()
+```
+
+
+This next visualization has very similar structure yet with a small adjustment.  Using our ggplot knowledge of plotting, we simply can place the SID count from 1974, specific to each count, for the fill.  And as you can see, this small tweak can show us the variation of SIDS across the entire state of NC comparing visually by county.  
+
+
+```{r}
+ggplot(data = nc, aes(fill = SID74)) +
+  geom_sf() +
+  theme_bw()
+
+```
+
+Another very cool thing you can do is change the colors as desired, another very basic ggplot move, now using 'scale_fill_gradient'.  It is so simple but does a lot at the same time without having to import NC's state shape and dealing with placing it longitudinally.   
+
+
+```{r}
+ggplot(nc, aes(fill = SID74)) +
+  geom_sf() +
+  scale_fill_gradient(low = "navy", high = "orange")+
+  theme_bw()
+
+```
+
+The same can be seen here for Birth Rates in 1974 done the same very simple way.  
+
+
+```{r}
+ggplot(nc, aes(fill = BIR74)) +
+  geom_sf() +
+  scale_fill_gradient(low = "navy", high = "orange")  +
+  theme_bw()
+```
+
+You can also very easily manipulate the data with some mutated new variables and do the exact same process as above.  You can see very detailed trends and patterns using very basic code.  
+
+Here we created new variables to show birth rate change for each county over the span 1974 to 1979.  We also created new variables to show the percent change in births over the years as well as proportion of nonwhite growth, based solely on birth rates.     
+
+```{r}
+nc_new <- nc %>%
+  group_by(NAME) %>%
+  mutate(pop_change = BIR79 - BIR74, 
+         prop_of_pop_growth_79 = BIR79 / BIR74, 
+         prop_of_NWpop_growth = (NWBIR79 - NWBIR74) / NWBIR74) %>%
+  ungroup()
+```
+
+This graphic can shows that birth rates were slightly increasing for almost every single county with a boom in birth rates, nearly doubling, out in Dare county in the Outer Banks.   
+
+```{r}
+ggplot(nc_new, aes(fill = prop_of_pop_growth_79)) +
+  geom_sf() +
+  scale_fill_gradient(low = "navy", high = "orange") +
+  theme_bw()
+```
+
+Lastly, we can see the proportion of nonwhite growth as well.  Most counties saw roughly doubling of nonwhite births from 1974 to 1979.  Interestingly enough, the rural mountainous Appalachia communities in Clay and Mitchell county saw their nonwhite population birth rate increase by 4x....quite surprising to see as these communities today are not well know for their diversity.   
+
+```{r}
+ggplot(nc_new, aes(fill = prop_of_NWpop_growth)) +
+  geom_sf() +
+  scale_fill_gradient(low = "navy", high = "orange") +
+  theme_bw()
+```
+
+# Example 2: Census Data 
+
+
+The main use of the geom_sf() function is to represent spatial data. Geom_sf() can be used in conjunction with many other types of data including interfacing with other geographical information systems including GEOS for geometrical operations and coordinates, GDAL which is a translator library for raster and vector geospatial data formats. Vector data: points, lines, and polygons. And interfaces with PRØJ for coordinate reference system conversion and transformation. A huge aspect to the sf() package is its ability to talk to and connect with other outside packages and geographic files/data. Here we can use geom_sf in conjunction with tidycensus and the tigris packages in R. 
+
+```{r}
+library(tidycensus)
+library(tigris)
+library(ggplot2)
+library(tidyverse)
+library(sf)
+options(tigris_class = "sf")
+#census_api_key("0d18c6319b992486c35de815f6707a377854da9e", install = TRUE, overwrite = TRUE)
+options(tigris_use_cache = TRUE)
+options(geometry = TRUE)
+```
+
+
+First, to get comfortable using the tigris package with sf, we can visualize my hometown Eugene, OR. 
+
+
+Visualizing with tigris and sf packages only. Simple features is taking tabular data and creating it into a geographic visualization.
+
+***Eugene Roads *** 
+
+```{r}
+Eugene_roads <- roads("OR", "Lane")
+
+ggplot(Eugene_roads) +
+  geom_sf() +
+  theme_void()
+```
+
+***Portland Roads *** 
+
+```{r}
+Portland_roads <- roads("OR", "Clackamas")
+
+ggplot(Portland_roads) + 
+  geom_sf() + 
+  theme_void()
+```
+
+
+***Water Bodies *** 
+
+```{r}
+Oregon <- area_water("OR", "Lane")
+
+ggplot(Oregon) +
+  geom_sf() +
+  theme_void()
+```
+
+
+***Census tracts***
+
+```{r}
+
+pnw <- rbind_tigris(
+  tracts("OR", cb = TRUE),
+  tracts("WA", cb = TRUE)
+)
+
+ggplot(pnw) + geom_sf()
+```
+ 
+Tigris only inputs geographic space and lines and points and polygons of spatial data; however, there is no data overlayed on to the specific area. This is where tidycensus comes in!
+
+
+***Using tidycensus***
+
+Incredibly hard, have to get an API from Census, but it is extremely sensitive and hates being called on. 
+
+
+```{r, eval = FALSE}
+census_api_key("0d18c6319b992486c35de815f6707a377854da9e", install = TRUE, overwrite = TRUE)
+```
+
+**Eugene Median Household Income**
+
+
+```{r, eval = FALSE}
+###AMERICAN COMMUNITY SURVEY
+
+Eugene <- get_acs(state = "OR", county = "Lane", geography = "tract",
+                  variables = "B19013_001", geometry = TRUE)
+
+head(Eugene)
+
+Eugene %>%
+  ggplot(aes(fill = estimate)) +
+  geom_sf(color = NA) +
+  coord_sf(crs = 26910) +
+  scale_fill_viridis_c()
+
+```
+
+
+
+![Eugene Median Household Income](C:/Users/kates/OneDrive/Desktop/Advanced_data_science/egue.png)
+
+**Portland Metro Area Average Income** 
+
+
+```{r, eval = FALSE} 
+ avg_income <- get_acs(state = "OR", geography = "tract", 
+                   variables = "DP03_0092", geometry = TRUE)
+ head(avg_income)
+ 
+ metros <- core_based_statistical_areas(cb = TRUE) %>%
+   filter(GEOID == "41860") %>%
+   select(metro_name = NAME)
+ 
+ metro_income <- st_join(avg_income, metros, join = st_within, 
+                  left = FALSE) 
+ 
+ head(metro_income)
+ 
+ library(viridis)
+ 
+ ggplot(metro_income, aes(fill = estimate, color = estimate)) + 
+   geom_sf() + 
+   coord_sf(crs = 26910) + 
+   theme_minimal() + 
+   theme(aspect.ratio = 1) + 
+   scale_fill_viridis() + 
+   scale_color_viridis()
+
+```
+
+
+![Portland Area Median Household Income](C:/Users/kates/OneDrive/Desktop/Advanced_data_science/Portlandmetro.png)
+
+
+# Questions
+
+**1.  Using geom_sf from the NC Data, create a plot showing the difference in SID cases for each county from 1974 to 1979 (1979 - 1974 cases).  You will need to use mutate to create a new variable.  Change the background to just white and adjust the gradient for the fill value to represent green as the low value and red as the high value.  The libraries to load (and likely install) and the read in for the data set is below.**  
+
+```{r}
+library(ggplot2)
+library(sf)         
+library(rgdal)       
+library(ggplot2)      
+library(dplyr)     
+library(tidyr)        
+library(scales)       
+library(RColorBrewer)
+library(gridExtra)    
+library(readr)  
+library(ncdf4) 
+library(raster) 
+
+```
+
+
+```{r}
+nc = st_read(system.file("gpkg/nc.gpkg", package="sf"), quiet = TRUE)
+```
+
+```{r}
+
+```
+
+
+
+
+**2.  Using the image below from the census data:  If we wanted to look at census tracts from a different area, how would we change the projection using sf notation?  Note: the answer does not require code, just a reference to where to make a change in the code for this graph.**  
+
+![Eugene Median Household Income](C:/Users/kates/OneDrive/Desktop/Advanced_data_science/egue.png)
+
+
+```{r, eval = FALSE}
+AMERICAN COMMUNITY SURVEY
+Eugene <- get_acs(state = "OR", county = "Lane", geography = "tract",
+                  variables = "B19013_001", geometry = TRUE)
+
+head(Eugene)
+
+Eugene %>%
+  ggplot(aes(fill = estimate)) +
+  geom_sf(color = NA) +
+  coord_sf(crs = 26910) +
+  scale_fill_viridis_c(option = "magma")
+
+```
+
+
+
+
+
+**3.  Using tigris notation, visualize your hometown/county with two different layers (i.e. roads, water_areas, or others listed in documentation).  Produce two separate graphs; no API key is needed.**    
+
+```{r}
+library(tidycensus)
+library(tigris)
+library(ggplot2)
+library(tidyverse)
+library(sf)
+options(tigris_class = "sf")
+options(tigris_use_cache = TRUE)
+options(geometry = TRUE)
+```
+
+```{r}
+
+```
+
+
+
