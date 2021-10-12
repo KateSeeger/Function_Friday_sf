@@ -1,0 +1,125 @@
+---
+title: "Sf Package Answer Key"
+author: "Anthony Palma, Ethan Deutsch, Kate Seeger"
+date: "10/11/2021"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+
+```
+
+# Questions + Answers
+
+1.  Using geom_sf, create a plot showing the difference in SID cases for each county from 1974 to 1979 (1979 - 1974 cases).  You will need to use mutate to create a new variable.  Change the background to just white and adjust the gradient for the fill value to represent green as the low value and red as the high value.  The libraries to load (and likely install) and the read in for the data set is below.  
+
+```{r}
+library(ggplot2)
+library(sf)         
+library(rgdal)       
+library(ggplot2)      
+library(dplyr)     
+library(tidyr)        
+library(scales)       
+library(RColorBrewer)
+library(gridExtra)    
+library(readr)  
+library(ncdf4) 
+library(raster) 
+
+```
+
+
+```{r}
+nc = st_read(system.file("gpkg/nc.gpkg", package="sf"), quiet = TRUE)
+```
+
+
+**ANSWER**
+
+```{r}
+nc_new <- nc %>%
+  group_by(NAME) %>%
+  mutate(SID_Diff = SID79 - SID74) %>%
+  ungroup()
+```
+
+```{r}
+ggplot(nc_new, aes(fill = SID_Diff)) +
+  geom_sf() +
+  scale_fill_gradient(low = "green", high = "red") +
+  theme_bw()
+```
+
+
+2.  Using the image below from the census data:  If we wanted to look at census tracts from a different area, how would we change the projection using sf notation?  Note: the answer does not require code, just a reference to where to make a change in the code for this graph that is below.  
+
+
+![Eugene Median Household Income](C:/Users/kates/OneDrive/Desktop/Advanced_data_science/egue.png)
+```{r, eval = FALSE}
+### AMERICAN COMMUNITY SURVEY
+
+Eugene <- get_acs(state = "OR", county = "Lane", geography = "tract",
+                  variables = "B19013_001", geometry = TRUE)
+
+head(Eugene)
+
+Eugene %>%
+  ggplot(aes(fill = estimate)) +
+  geom_sf(color = NA) +
+  coord_sf(crs = 26910) +
+  scale_fill_viridis()
+
+```
+
+
+**ANSWER**
+
+You have to look up the crs projection based on location i.e. coord_sf(crs = 26910). 
+
+
+
+3.  Using tigris notation, visualize your hometown/county with two different layers (i.e. roads, water_areas, or others listed in documentation). 
+
+**ANSWER**
+
+Reference “tigris” Rdocumentation to see what other physical attributes they can overlay over an area on top of the ones in the example...general structure below for area of water and roads. 
+
+```{r}
+library(tidycensus)
+library(tigris)
+library(ggplot2)
+library(tidyverse)
+library(sf)
+options(tigris_class = "sf")
+options(tigris_use_cache = TRUE)
+options(geometry = TRUE)
+```
+
+
+For example: 
+
+```{r}
+Iredell_Water <- area_water("NC", "Iredell")
+
+ggplot(Iredell_Water) + 
+  geom_sf() + 
+  theme_void()
+```
+
+```{r}
+Iredell_Roads <- roads("NC", "Iredell")
+
+ggplot(Iredell_Roads) +
+  geom_sf() +
+  theme_void()
+```
+
+
+
